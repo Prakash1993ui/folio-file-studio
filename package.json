@@ -1,0 +1,19 @@
+{
+  "name": "folio-file-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local browser workspace for PDF, JPEG, PNG, ZIP, TXT and HTML files.",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "dev": "npm run build && npm start",
+    "standalone": "python3 build-standalone.py Folio.html"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "5.6.205"
+  }
+}
