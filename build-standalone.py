@@ -1,51 +1,33 @@
-"""Package the complete browser app into a single offline HTML document."""
+"""Package the built app and its local runtime assets for offline serving."""
 from pathlib import Path
-import base64
-import json
+from zipfile import ZipFile, ZIP_DEFLATED
 import sys
 
 root = Path(__file__).resolve().parent
 dist = root / 'dist'
-target = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / 'Folio.html'
+target = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / 'Folio-Offline.zip'
+if not (dist / 'pdf-engine.js').is_file():
+    raise SystemExit('Run npm run build before packaging the app.')
+if target.suffix.lower() != '.zip':
+    raise SystemExit('The offline edition is a ZIP folder. Use a .zip output name.')
+readme = """Folio offline edition
 
-def b64(path):
-    return base64.b64encode(path.read_bytes()).decode('ascii')
+Extract this ZIP into a folder. Serve that folder with any local HTTP server.
+For example, with Python 3, open a terminal in the extracted folder and run:
 
-def script_safe(text):
-    return text.replace('</script', '<\\/script').replace('</SCRIPT', '<\\/SCRIPT')
+    python3 -m http.server 8080 --bind 127.0.0.1
 
-assets = {}
-for folder in ['cmaps', 'standard_fonts', 'wasm']:
-    for path in (dist / 'vendor' / folder).rglob('*'):
+Then open http://127.0.0.1:8080 in a modern browser.
+Keep the terminal open while using the app. Press Ctrl+C to stop the server.
+All PDF engines, OCR models, fonts and libraries are included locally.
+The app needs HTTP serving for its JavaScript modules and WebAssembly engines.
+Browser storage is local to the address and port used. Download important files.
+Source: https://github.com/Prakash1993ui/folio-file-studio
+License: GNU AGPL version 3 or later; see LICENSE and NOTICE.md.
+"""
+with ZipFile(target, 'w', ZIP_DEFLATED, compresslevel=6) as archive:
+    for path in sorted(dist.rglob('*')):
         if path.is_file():
-            assets[str(path.relative_to(dist / 'vendor'))] = b64(path)
-
-bootstrap = '''
-const FOLIO_ASSETS = ASSETS_JSON;
-const folioBytes = value => Uint8Array.from(atob(value), c => c.charCodeAt(0));
-const folioModuleURL = URL.createObjectURL(new Blob([folioBytes(PDF_MODULE_JSON)], {type:'text/javascript'}));
-const pdfjs = await import(folioModuleURL);
-pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([folioBytes(PDF_WORKER_JSON)], {type:'text/javascript'}));
-class FolioBinaryDataFactory {
-  async fetch({kind, filename}) {
-    const folder = {cMapUrl:'cmaps', standardFontDataUrl:'standard_fonts', wasmUrl:'wasm'}[kind];
-    const value = FOLIO_ASSETS[folder+'/'+filename];
-    if (!value) throw new Error('Missing embedded PDF resource: '+filename);
-    return folioBytes(value);
-  }
-}
-'''.replace('ASSETS_JSON', json.dumps(assets, separators=(',', ':'))).replace('PDF_MODULE_JSON', json.dumps(b64(dist / 'vendor' / 'pdf.mjs'))).replace('PDF_WORKER_JSON', json.dumps(b64(dist / 'vendor' / 'pdf.worker.mjs')))
-
-app = (dist / 'app.js').read_text()
-app = app.replace("import * as pdfjs from './vendor/pdf.mjs';\npdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.mjs';", bootstrap)
-app = app.replace('pdfjs.getDocument({data:', 'pdfjs.getDocument({BinaryDataFactory:FolioBinaryDataFactory,useWorkerFetch:false,data:')
-html = (dist / 'index.html').read_text()
-html = html.replace('<link rel="stylesheet" href="style.css">', '<style>' + (dist / 'style.css').read_text() + '</style>')
-html = html.replace('<script src="vendor/pdf-lib.min.js" defer></script>', '<script>' + script_safe((dist / 'vendor' / 'pdf-lib.min.js').read_text()) + '</script>')
-html = html.replace('<script src="vendor/jszip.min.js" defer></script>', '<script>' + script_safe((dist / 'vendor' / 'jszip.min.js').read_text()) + '</script>')
-html = html.replace('<script type="module" src="app.js"></script>', '<script type="module">' + script_safe(app) + '</script>')
-licenses = '\n\n'.join(p.read_text() for p in sorted((dist / 'vendor').glob('*LICENSE*')))
-head, tail = html.rsplit('</body>', 1)
-html = head + '<script type="text/plain" id="folio-third-party-licenses">' + script_safe(licenses) + '</script></body>' + tail
-target.write_text(html)
+            archive.write(path, path.relative_to(dist))
+    archive.writestr('START-HERE.txt', readme)
 print(f'Created {target.name} ({target.stat().st_size:,} bytes)')

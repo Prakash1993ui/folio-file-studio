@@ -1,6 +1,7 @@
 node_modules/
 dist/
 Folio.html
+Folio-Offline.zip
 .DS_Store
 .env
 .env.*

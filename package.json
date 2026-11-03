@@ -4,16 +4,24 @@
   "private": true,
   "description": "A local browser workspace for PDF, JPEG, PNG, ZIP, TXT and HTML files.",
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node scripts/serve.mjs",
     "dev": "npm run build && npm start",
-    "standalone": "python3 build-standalone.py Folio.html"
+    "test": "node --test tests/pdf-content.test.mjs",
+    "standalone": "python3 build-standalone.py Folio-Offline.zip"
   },
   "dependencies": {
     "jszip": "3.10.1",
     "pdf-lib": "1.17.1",
-    "pdfjs-dist": "5.6.205"
-  }
+    "pdfjs-dist": "5.6.205",
+    "mupdf": "1.28.1",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0",
+    "@tesseract.js-data/eng": "1.0.0"
+  },
+  "license": "AGPL-3.0-or-later"
 }
